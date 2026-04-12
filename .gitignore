@@ -1,0 +1,14 @@
+# Env files
+.env
+.env.local
+
+# Docker
+docker-compose.override.yml
+.n8n/
+
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+.next/

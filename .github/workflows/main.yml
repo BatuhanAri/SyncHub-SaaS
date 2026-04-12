@@ -1,0 +1,55 @@
+name: SyncHub CI/CD
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js (Backend)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+      
+      - name: Install dependencies and Lint (Backend)
+        run: |
+          cd backend
+          npm ci
+          npm run lint
+          npm run test
+      
+      - name: Setup Node.js (Frontend)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+      
+      - name: Install dependencies and Lint (Frontend)
+        run: |
+          cd frontend
+          npm ci
+          npm run lint
+          # npm run test (Eğer test eklendiyse)
+
+  docker-build:
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Build Backend Image
+        run: docker build -t synchub-backend ./backend
+
+      - name: Build Frontend Image
+        run: docker build -t synchub-frontend ./frontend
