@@ -13,6 +13,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { ServiceModule } from './service/service.module';
 
 @Module({
   imports: [
@@ -24,12 +25,13 @@ import { UserModule } from './user/user.module';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'synchub',
       entities: [Tenant, User, Service, Appointment],
-      synchronize: false, // In production, use migrations
+      synchronize: false,
     }),
     RedisModule,
     WebhooksModule,
     UserModule,
     AuthModule,
+    ServiceModule,
     AppointmentModule,
   ],
   controllers: [AppController],
@@ -41,11 +43,11 @@ export class AppModule implements NestModule {
       .apply(TenantMiddleware)
       .exclude(
         { path: '/', method: RequestMethod.GET },
-        { path: '/api/docs', method: RequestMethod.ALL }, // Allow Swagger
-        { path: '/api/docs/(.*)', method: RequestMethod.ALL }, // Allow Swagger assets
+        { path: '/api/docs', method: RequestMethod.ALL },
+        { path: '/api/docs/(.*)', method: RequestMethod.ALL },
         { path: '/auth/login', method: RequestMethod.POST },
-        { path: '/auth/register', method: RequestMethod.POST }
+        { path: '/auth/register', method: RequestMethod.POST },
       )
-      .forRoutes('*'); // Apply to all other routes
+      .forRoutes('*');
   }
 }

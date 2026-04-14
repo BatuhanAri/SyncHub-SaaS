@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
@@ -20,6 +20,31 @@ export class AppointmentService {
     private readonly webhooksService: WebhooksService,
   ) {}
 
+  async findAll(tenantId: string): Promise<Appointment[]> {
+    return this.appointmentRepo.find({
+      where: { tenantId },
+      relations: ['service'],
+      order: { startTime: 'DESC' },
+    });
+  }
+
+  async findOne(tenantId: string, id: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id, tenantId },
+      relations: ['service'],
+    });
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+    return appointment;
+  }
+
+  async updateStatus(tenantId: string, id: string, status: string): Promise<Appointment> {
+    const appointment = await this.findOne(tenantId, id);
+    appointment.status = status;
+    return this.appointmentRepo.save(appointment);
+  }
+
   async createAppointment(tenantId: string, dto: CreateAppointmentDto) {
     const service = await this.serviceRepo.findOne({
       where: { id: dto.serviceId, tenantId },
@@ -39,18 +64,14 @@ export class AppointmentService {
       throw new BadRequestException('Appointments can only be scheduled between 09:00 and 18:00 UTC');
     }
 
-    // Distributed Locking: Prevent Race Conditions for the same service in the same tenant
-    // Even better would be locking the exact timeslot, but locking the service is safer and simpler
     const lockKey = `lock:appointment:${tenantId}:${service.id}`;
-    const lockId = await this.redisService.acquireLock(lockKey, 3000); // 3 seconds lock
+    const lockId = await this.redisService.acquireLock(lockKey, 3000);
 
     if (!lockId) {
       throw new ConflictException('Service is currently being booked by someone else. Please try again in a moment.');
     }
 
     try {
-      // Check overlaps
-      // An overlap occurs if an existing appointment starts before this one ends, AND ends after this one starts.
       const overlap = await this.appointmentRepo.findOne({
         where: {
           serviceId: service.id,
@@ -64,7 +85,6 @@ export class AppointmentService {
         throw new ConflictException('This timeslot is already booked.');
       }
 
-      // Create Appointment
       const appointment = this.appointmentRepo.create({
         tenantId,
         serviceId: service.id,
@@ -78,7 +98,6 @@ export class AppointmentService {
 
       const savedAppointment = await this.appointmentRepo.save(appointment);
 
-      // Async Webhook trigger
       this.webhooksService.triggerAppointmentCreated(tenantId, savedAppointment).catch(err => {
         this.logger.error(`Webhook failed asynchronously: ${err.message}`);
       });
