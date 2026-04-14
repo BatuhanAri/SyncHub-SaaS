@@ -3,20 +3,46 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Building2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
+import { saveAuth } from '@/lib/auth';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     businessName: '',
     email: '',
     password: '',
-    confirmPassword: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => setLoading(false), 2000);
+    setError('');
+
+    try {
+      // Generate a simple tenant ID from business name (slugify)
+      const tenantId = formData.businessName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const response = await api.post('/auth/register', {
+        email: formData.email,
+        password: formData.password,
+        tenantId: tenantId || `tenant-${Math.random().toString(36).substr(2, 9)}`,
+        name: formData.businessName // For the tenant name
+      });
+
+      const { access_token, user } = response.data;
+      saveAuth(access_token, user.tenantId);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,6 +57,11 @@ export default function RegisterPage() {
         </div>
 
         <div className="glass-card p-8">
+          {error && (
+            <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300 ml-1">Business Name</label>
