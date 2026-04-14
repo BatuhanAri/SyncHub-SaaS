@@ -41,6 +41,8 @@ export class AppModule implements NestModule {
       .apply(TenantMiddleware)
       .exclude(
         { path: '/', method: RequestMethod.GET },
+        { path: '/api/docs', method: RequestMethod.ALL }, // Allow Swagger
+        { path: '/api/docs/(.*)', method: RequestMethod.ALL }, // Allow Swagger assets
         { path: '/auth/login', method: RequestMethod.POST },
         { path: '/auth/register', method: RequestMethod.POST }
       )

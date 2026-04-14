@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { UserPlus, Mail, Lock, Building2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Building2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function RegisterPage() {

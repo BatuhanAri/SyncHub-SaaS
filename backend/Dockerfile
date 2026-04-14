@@ -1,35 +1,29 @@
-# Base image
-FROM node:18-alpine As development
+# Stage 1: Build
+FROM node:18-alpine AS builder
 
-# Create app directory
+# bcrypt requires python3 and make to compile native bindings
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /usr/src/app
 
-# Copy application dependency manifests to the container image.
 COPY package*.json ./
+RUN npm ci
 
-# Install app dependencies
-RUN npm install
-
-# Bundle app source
 COPY . .
-
-# Build the app
 RUN npm run build
 
-# Production image
-FROM node:18-alpine As production
+# Stage 2: Production
+FROM node:18-alpine AS production
 
-ARG NODE_ENV=production
-ENV NODE_ENV=${NODE_ENV}
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /usr/src/app
 
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Install only production dependencies
-RUN npm ci --only=production
+COPY --from=builder /usr/src/app/dist ./dist
 
-COPY --from=development /usr/src/app/dist ./dist
+EXPOSE 3001
 
-# Start the server using the production build
 CMD ["node", "dist/main"]

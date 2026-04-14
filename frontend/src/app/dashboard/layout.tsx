@@ -10,7 +10,6 @@ import {
   Search, 
   LogOut, 
   Menu, 
-  X,
   CreditCard,
   Zap
 } from 'lucide-react';
